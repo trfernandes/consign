@@ -19,7 +19,7 @@ export const verifyRevendedoraSession = cache(async () => {
     include: {
       carteiras: {
         where: { ativa: true },
-        include: { empresa: true },
+        include: { empresa: true, disponibilidades: true },
       },
     },
   });
