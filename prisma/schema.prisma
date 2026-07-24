@@ -26,6 +26,7 @@ model Empresa {
 
   funcionarios Funcionario[]
   carteiras    CarteiraRevendedora[]
+  produtos     Produto[]
 }
 
 model Funcionario {
@@ -98,6 +99,18 @@ model CarteiraRevendedora {
   updatedAt DateTime @updatedAt
 
   @@unique([revendedoraId, empresaId])
+}
+
+model Produto {
+  id    String @id @default(uuid())
+  nome  String
+  preco Decimal @db.Decimal(10, 2)
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model DisponibilidadeRevendedora {
