@@ -43,9 +43,11 @@ model Funcionario {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
-  carteiras CarteiraRevendedora[]
+  carteiras    CarteiraRevendedora[]
   estoqueCarro EstoqueCarro[]
   retiradas    RetiradaEstoque[]
+  vendas       Venda[]
+  pagamentos   Pagamento[]
 }
 
 enum DiaSemana {
@@ -96,12 +98,83 @@ model CarteiraRevendedora {
 
   ativa Boolean @default(true)
 
+  saldoDevedor Decimal @default(0) @db.Decimal(10, 2)
+
   disponibilidades DisponibilidadeRevendedora[]
+  vendas           Venda[]
+  pagamentos       Pagamento[]
+  estoques         EstoqueRevendedora[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([revendedoraId, empresaId])
+}
+
+enum FormaPagamento {
+  DINHEIRO
+  PIX
+  OUTRO
+}
+
+model Venda {
+  id String @id @default(uuid())
+
+  carteiraId String
+  carteira   CarteiraRevendedora @relation(fields: [carteiraId], references: [id])
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  valorTotal Decimal @db.Decimal(10, 2)
+
+  itens ItemVenda[]
+
+  createdAt DateTime @default(now())
+}
+
+model ItemVenda {
+  id String @id @default(uuid())
+
+  vendaId String
+  venda   Venda @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  quantidade    Int
+  precoUnitario Decimal @db.Decimal(10, 2)
+}
+
+model Pagamento {
+  id String @id @default(uuid())
+
+  carteiraId String
+  carteira   CarteiraRevendedora @relation(fields: [carteiraId], references: [id])
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  valor Decimal        @db.Decimal(10, 2)
+  forma FormaPagamento
+
+  createdAt DateTime @default(now())
+}
+
+model EstoqueRevendedora {
+  id String @id @default(uuid())
+
+  carteiraId String
+  carteira   CarteiraRevendedora @relation(fields: [carteiraId], references: [id])
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  quantidade Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([carteiraId, produtoId])
 }
 
 model Produto {
@@ -112,9 +185,11 @@ model Produto {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
-  estoqueCentral EstoqueCentral?
-  estoqueCarro   EstoqueCarro[]
-  retiradas      RetiradaEstoque[]
+  estoqueCentral     EstoqueCentral?
+  estoqueCarro       EstoqueCarro[]
+  retiradas          RetiradaEstoque[]
+  itensVenda         ItemVenda[]
+  estoquesRevendedora EstoqueRevendedora[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

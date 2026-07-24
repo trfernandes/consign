@@ -37,8 +37,12 @@ export default async function RevendedorasPage() {
                 {c.revendedora.estado}
               </p>
               <p className="text-muted-foreground">Responsável: {c.funcionarioResponsavel.nome}</p>
+              <p className="text-muted-foreground">Saldo devedor: R$ {c.saldoDevedor.toFixed(2)}</p>
             </div>
             <div className="flex gap-2">
+              <Link href={`/revendedoras/${c.id}/visita`}>
+                <Button variant="outline">Visita</Button>
+              </Link>
               <Link href={`/revendedoras/${c.id}/editar`}>
                 <Button variant="outline">Editar</Button>
               </Link>
