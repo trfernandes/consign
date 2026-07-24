@@ -11,11 +11,11 @@ export default async function FuncionariosPage() {
   });
 
   return (
-    <main>
-      <h1>Funcionários</h1>
-      <ul>
+    <main className="flex flex-col gap-6 p-6">
+      <h1 className="text-2xl font-semibold">Funcionários</h1>
+      <ul className="flex flex-col gap-2">
         {funcionarios.map((f) => (
-          <li key={f.id}>
+          <li key={f.id} className="text-sm">
             {f.nome} — {f.email} — {f.telefone}
           </li>
         ))}
