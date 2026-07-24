@@ -44,6 +44,8 @@ model Funcionario {
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
   carteiras CarteiraRevendedora[]
+  estoqueCarro EstoqueCarro[]
+  retiradas    RetiradaEstoque[]
 }
 
 enum DiaSemana {
@@ -111,6 +113,8 @@ model Produto {
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
   estoqueCentral EstoqueCentral?
+  estoqueCarro   EstoqueCarro[]
+  retiradas      RetiradaEstoque[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -128,6 +132,36 @@ model EstoqueCentral {
   quantidade Int @default(0)
 
   updatedAt DateTime @updatedAt
+}
+
+model EstoqueCarro {
+  id String @id @default(uuid())
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  quantidade Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([funcionarioId, produtoId])
+}
+
+model RetiradaEstoque {
+  id String @id @default(uuid())
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  quantidade Int
+
+  createdAt DateTime @default(now())
 }
 
 model DisponibilidadeRevendedora {
