@@ -48,6 +48,7 @@ model Funcionario {
   retiradas    RetiradaEstoque[]
   vendas       Venda[]
   pagamentos   Pagamento[]
+  anotacoes    AnotacaoComportamento[]
 }
 
 enum DiaSemana {
@@ -104,6 +105,7 @@ model CarteiraRevendedora {
   vendas           Venda[]
   pagamentos       Pagamento[]
   estoques         EstoqueRevendedora[]
+  anotacoes        AnotacaoComportamento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -157,6 +159,30 @@ model Pagamento {
 
   valor Decimal        @db.Decimal(10, 2)
   forma FormaPagamento
+
+  createdAt DateTime @default(now())
+}
+
+enum TagComportamento {
+  DEVOLVE_COM_DEFEITO
+  NUNCA_ESTA_EM_CASA
+  ATRASA_PAGAMENTO
+  BOM_PAGADOR
+  RECEPTIVA
+  DIFICIL_CONTATO
+}
+
+model AnotacaoComportamento {
+  id String @id @default(uuid())
+
+  carteiraId String
+  carteira   CarteiraRevendedora @relation(fields: [carteiraId], references: [id])
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  tags  TagComportamento[]
+  texto String?
 
   createdAt DateTime @default(now())
 }

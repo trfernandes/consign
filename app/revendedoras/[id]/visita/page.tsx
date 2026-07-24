@@ -5,6 +5,7 @@ import { VendaForm } from "./venda-form";
 import { PagamentoForm } from "./pagamento-form";
 import { DeixarMercadoriaForm } from "./deixar-mercadoria-form";
 import { PortalAcessoForm } from "./portal-acesso-form";
+import { AnotacoesForm } from "./anotacoes-form";
 
 export default async function VisitaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,11 +24,16 @@ export default async function VisitaPage({ params }: { params: Promise<{ id: str
     notFound();
   }
 
-  const [produtos, estoqueCarro] = await Promise.all([
+  const [produtos, estoqueCarro, anotacoes] = await Promise.all([
     prisma.produto.findMany({ where: { empresaId: funcionario.empresaId }, orderBy: { nome: "asc" } }),
     prisma.estoqueCarro.findMany({
       where: { funcionarioId: funcionario.id, quantidade: { gt: 0 } },
       include: { produto: true },
+    }),
+    prisma.anotacaoComportamento.findMany({
+      where: { carteiraId: id },
+      include: { funcionario: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -55,6 +61,8 @@ export default async function VisitaPage({ params }: { params: Promise<{ id: str
       />
 
       <PortalAcessoForm carteiraId={id} temAcesso={Boolean(carteira.revendedora.authUserId)} />
+
+      <AnotacoesForm carteiraId={id} anotacoes={anotacoes} />
     </main>
   );
 }
