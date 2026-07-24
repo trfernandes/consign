@@ -27,6 +27,7 @@ model Empresa {
   funcionarios Funcionario[]
   carteiras    CarteiraRevendedora[]
   produtos     Produto[]
+  estoques     EstoqueCentral[]
 }
 
 model Funcionario {
@@ -109,7 +110,23 @@ model Produto {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
+  estoqueCentral EstoqueCentral?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EstoqueCentral {
+  id String @id @default(uuid())
+
+  produtoId String  @unique
+  produto   Produto @relation(fields: [produtoId], references: [id])
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+
+  quantidade Int @default(0)
+
   updatedAt DateTime @updatedAt
 }
 
