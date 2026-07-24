@@ -43,7 +43,7 @@ Gestão de consignação porta-a-porta para revendedoras. Next.js (App Router) +
 ### Google Maps Platform
 
 1. Criar projeto no [Google Cloud Console](https://console.cloud.google.com/), habilitar billing.
-2. Habilitar Directions API e Distance Matrix API.
+2. Habilitar Directions API, Distance Matrix API e Geocoding API.
 3. Criar API key, restringir por IP/referrer.
 4. `GOOGLE_MAPS_API_KEY`: colar chave.
 
@@ -63,5 +63,5 @@ Gestão de consignação porta-a-porta para revendedoras. Next.js (App Router) +
 - Next.js (App Router, TypeScript)
 - Prisma ORM + Postgres (Supabase)
 - Supabase Auth (email/senha)
-- Google Maps Platform (Directions/Distance Matrix), isolado atrás de interface pra testes
+- Google Maps Platform (Directions/Distance Matrix/Geocoding), isolado atrás de interface pra testes
 - Vercel (deploy automático por push)

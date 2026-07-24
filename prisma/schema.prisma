@@ -26,4 +26,55 @@ model Funcionario {
   role       Role
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  revendedoras Revendedora[]
+}
+
+enum DiaSemana {
+  DOMINGO
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+}
+
+model Revendedora {
+  id         String  @id @default(uuid())
+  authUserId String? @unique
+
+  nome            String
+  cpf             String  @unique
+  telefone        String
+  pontoReferencia String?
+
+  rua       String
+  numero    String
+  bairro    String
+  cidade    String
+  estado    String
+  cep       String
+  latitude  Float
+  longitude Float
+
+  ativa Boolean @default(true)
+
+  funcionarioResponsavelId String
+  funcionarioResponsavel   Funcionario @relation(fields: [funcionarioResponsavelId], references: [id])
+
+  disponibilidades DisponibilidadeRevendedora[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DisponibilidadeRevendedora {
+  id            String      @id @default(uuid())
+  revendedoraId String
+  revendedora   Revendedora @relation(fields: [revendedoraId], references: [id], onDelete: Cascade)
+
+  diaSemana  DiaSemana
+  horaInicio String
+  horaFim    String
 }

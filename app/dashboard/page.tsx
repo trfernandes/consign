@@ -19,6 +19,10 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      <Link href="/revendedoras" className="text-sm text-primary underline-offset-4 hover:underline">
+        Revendedoras
+      </Link>
+
       <form action={logout}>
         <Button variant="outline" type="submit">
           Sair
