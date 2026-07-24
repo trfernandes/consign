@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { VendaForm } from "./venda-form";
 import { PagamentoForm } from "./pagamento-form";
 import { DeixarMercadoriaForm } from "./deixar-mercadoria-form";
+import { PortalAcessoForm } from "./portal-acesso-form";
 
 export default async function VisitaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,6 +53,8 @@ export default async function VisitaPage({ params }: { params: Promise<{ id: str
           disponivel: e.quantidade,
         }))}
       />
+
+      <PortalAcessoForm carteiraId={id} temAcesso={Boolean(carteira.revendedora.authUserId)} />
     </main>
   );
 }

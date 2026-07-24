@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = ["/login"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/portal/login"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -34,7 +34,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.includes(request.nextUrl.pathname);
 
   if (!user && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginPath = request.nextUrl.pathname.startsWith("/portal") ? "/portal/login" : "/login";
+    return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
   return response;
