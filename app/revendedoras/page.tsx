@@ -7,10 +7,13 @@ import { desativarRevendedora, reativarRevendedora } from "./actions";
 export default async function RevendedorasPage() {
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const revendedoras = await prisma.revendedora.findMany({
-    where: funcionario.role === "GESTOR" ? {} : { funcionarioResponsavelId: funcionario.id },
-    include: { funcionarioResponsavel: true },
-    orderBy: { nome: "asc" },
+  const carteiras = await prisma.carteiraRevendedora.findMany({
+    where: {
+      empresaId: funcionario.empresaId,
+      ...(funcionario.role === "FUNCIONARIO" ? { funcionarioResponsavelId: funcionario.id } : {}),
+    },
+    include: { revendedora: true, funcionarioResponsavel: true },
+    orderBy: { revendedora: { nome: "asc" } },
   });
 
   return (
@@ -23,36 +26,37 @@ export default async function RevendedorasPage() {
       </div>
 
       <ul className="flex flex-col gap-3">
-        {revendedoras.map((r) => (
-          <li key={r.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
+        {carteiras.map((c) => (
+          <li key={c.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
             <div>
               <p className="font-medium">
-                {r.nome} {!r.ativa && <span className="text-muted-foreground">(inativa)</span>}
+                {c.revendedora.nome} {!c.ativa && <span className="text-muted-foreground">(inativa)</span>}
               </p>
               <p className="text-muted-foreground">
-                {r.rua}, {r.numero} — {r.bairro}, {r.cidade}/{r.estado}
+                {c.revendedora.rua}, {c.revendedora.numero} — {c.revendedora.bairro}, {c.revendedora.cidade}/
+                {c.revendedora.estado}
               </p>
-              <p className="text-muted-foreground">Responsável: {r.funcionarioResponsavel.nome}</p>
+              <p className="text-muted-foreground">Responsável: {c.funcionarioResponsavel.nome}</p>
             </div>
             <div className="flex gap-2">
-              <Link href={`/revendedoras/${r.id}/editar`}>
+              <Link href={`/revendedoras/${c.id}/editar`}>
                 <Button variant="outline">Editar</Button>
               </Link>
               <form
                 action={
-                  r.ativa
+                  c.ativa
                     ? async () => {
                         "use server";
-                        await desativarRevendedora(r.id);
+                        await desativarRevendedora(c.id);
                       }
                     : async () => {
                         "use server";
-                        await reativarRevendedora(r.id);
+                        await reativarRevendedora(c.id);
                       }
                 }
               >
                 <Button variant="outline" type="submit">
-                  {r.ativa ? "Desativar" : "Reativar"}
+                  {c.ativa ? "Desativar" : "Reativar"}
                 </Button>
               </form>
             </div>

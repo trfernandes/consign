@@ -26,6 +26,8 @@ export function RevendedoraForm({
   action,
   funcionarios,
   initial,
+  revendedoraIdFixo,
+  cpfFixo,
 }: {
   title: string;
   action: (state: RevendedoraState, formData: FormData) => Promise<RevendedoraState>;
@@ -44,7 +46,12 @@ export function RevendedoraForm({
     funcionarioResponsavelId: string;
     disponibilidades: Disponibilidade[];
   };
+  /** Quando presente, o cadastro é só o vínculo — pessoa já existe (CPF encontrado). */
+  revendedoraIdFixo?: string;
+  /** CPF a pré-preencher quando a busca não encontrou ninguém. */
+  cpfFixo?: string;
 }) {
+  const pessoaBloqueada = Boolean(revendedoraIdFixo);
   const [state, formAction, pending] = useActionState(action, undefined);
   const [disponibilidades, setDisponibilidades] = useState<Disponibilidade[]>(
     initial?.disponibilidades ?? [{ diaSemana: "SEGUNDA", horaInicio: "08:00", horaFim: "18:00" }]
@@ -73,61 +80,72 @@ export function RevendedoraForm({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
+        {pessoaBloqueada && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            CPF já cadastrado. Você está criando o vínculo desta revendedora com a sua empresa —
+            os dados pessoais são compartilhados e não podem ser alterados aqui.
+          </p>
+        )}
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="disponibilidades" value={JSON.stringify(disponibilidades)} />
+          {revendedoraIdFixo && <input type="hidden" name="revendedoraId" value={revendedoraIdFixo} />}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="nome">Nome</Label>
-            <Input id="nome" name="nome" defaultValue={initial?.nome} required />
-          </div>
+          {!pessoaBloqueada && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nome">Nome</Label>
+                <Input id="nome" name="nome" defaultValue={initial?.nome} required />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" name="cpf" defaultValue={initial?.cpf} required />
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input id="cpf" name="cpf" defaultValue={initial?.cpf ?? cpfFixo} required />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="telefone">Telefone</Label>
-            <Input id="telefone" name="telefone" defaultValue={initial?.telefone} required />
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input id="telefone" name="telefone" defaultValue={initial?.telefone} required />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="pontoReferencia">Ponto de referência</Label>
-            <Input id="pontoReferencia" name="pontoReferencia" defaultValue={initial?.pontoReferencia ?? ""} />
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="pontoReferencia">Ponto de referência</Label>
+                <Input id="pontoReferencia" name="pontoReferencia" defaultValue={initial?.pontoReferencia ?? ""} />
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rua">Rua</Label>
-              <Input id="rua" name="rua" defaultValue={initial?.rua} required />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="numero">Número</Label>
-              <Input id="numero" name="numero" defaultValue={initial?.numero} required />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="rua">Rua</Label>
+                  <Input id="rua" name="rua" defaultValue={initial?.rua} required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="numero">Número</Label>
+                  <Input id="numero" name="numero" defaultValue={initial?.numero} required />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bairro">Bairro</Label>
-              <Input id="bairro" name="bairro" defaultValue={initial?.bairro} required />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="cidade">Cidade</Label>
-              <Input id="cidade" name="cidade" defaultValue={initial?.cidade} required />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="bairro">Bairro</Label>
+                  <Input id="bairro" name="bairro" defaultValue={initial?.bairro} required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="cidade">Cidade</Label>
+                  <Input id="cidade" name="cidade" defaultValue={initial?.cidade} required />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="estado">Estado (UF)</Label>
-              <Input id="estado" name="estado" maxLength={2} defaultValue={initial?.estado} required />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="cep">CEP</Label>
-              <Input id="cep" name="cep" defaultValue={initial?.cep} required />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="estado">Estado (UF)</Label>
+                  <Input id="estado" name="estado" maxLength={2} defaultValue={initial?.estado} required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="cep">CEP</Label>
+                  <Input id="cep" name="cep" defaultValue={initial?.cep} required />
+                </div>
+              </div>
+            </>
+          )}
 
           {funcionarios && funcionarios.length > 0 && (
             <div className="flex flex-col gap-1.5">

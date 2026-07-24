@@ -12,16 +12,16 @@ export default async function EditarRevendedoraPage({
   const { id } = await params;
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const revendedora = await prisma.revendedora.findUnique({
-    where: { id },
-    include: { disponibilidades: true },
+  const carteira = await prisma.carteiraRevendedora.findFirst({
+    where: { id, empresaId: funcionario.empresaId },
+    include: { revendedora: true, disponibilidades: true },
   });
 
-  if (!revendedora) {
+  if (!carteira) {
     notFound();
   }
 
-  if (funcionario.role === "FUNCIONARIO" && revendedora.funcionarioResponsavelId !== funcionario.id) {
+  if (funcionario.role === "FUNCIONARIO" && carteira.funcionarioResponsavelId !== funcionario.id) {
     notFound();
   }
 
@@ -37,22 +37,22 @@ export default async function EditarRevendedoraPage({
     <main className="flex flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">Editar revendedora</h1>
       <RevendedoraForm
-        title={revendedora.nome}
+        title={carteira.revendedora.nome}
         action={editRevendedora.bind(null, id)}
         funcionarios={funcionarios}
         initial={{
-          nome: revendedora.nome,
-          cpf: revendedora.cpf,
-          telefone: revendedora.telefone,
-          pontoReferencia: revendedora.pontoReferencia,
-          rua: revendedora.rua,
-          numero: revendedora.numero,
-          bairro: revendedora.bairro,
-          cidade: revendedora.cidade,
-          estado: revendedora.estado,
-          cep: revendedora.cep,
-          funcionarioResponsavelId: revendedora.funcionarioResponsavelId,
-          disponibilidades: revendedora.disponibilidades.map((d) => ({
+          nome: carteira.revendedora.nome,
+          cpf: carteira.revendedora.cpf,
+          telefone: carteira.revendedora.telefone,
+          pontoReferencia: carteira.revendedora.pontoReferencia,
+          rua: carteira.revendedora.rua,
+          numero: carteira.revendedora.numero,
+          bairro: carteira.revendedora.bairro,
+          cidade: carteira.revendedora.cidade,
+          estado: carteira.revendedora.estado,
+          cep: carteira.revendedora.cep,
+          funcionarioResponsavelId: carteira.funcionarioResponsavelId,
+          disponibilidades: carteira.disponibilidades.map((d) => ({
             diaSemana: d.diaSemana,
             horaInicio: d.horaInicio,
             horaFim: d.horaFim,

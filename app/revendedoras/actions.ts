@@ -15,7 +15,14 @@ const disponibilidadeSchema = z.object({
   horaFim: z.string().regex(/^\d{2}:\d{2}$/, "Horário inválido."),
 });
 
-const revendedoraSchema = z.object({
+const vinculoSchema = z.object({
+  funcionarioResponsavelId: z.string().min(1).optional(),
+  disponibilidades: z
+    .array(disponibilidadeSchema)
+    .min(1, "Informe ao menos um horário de disponibilidade."),
+});
+
+const pessoaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório."),
   cpf: z.string().refine(validarCpf, "CPF inválido."),
   telefone: z.string().refine(validarTelefone, "Telefone inválido."),
@@ -26,16 +33,41 @@ const revendedoraSchema = z.object({
   cidade: z.string().min(1, "Cidade é obrigatória."),
   estado: z.string().length(2, "Estado deve ter 2 letras."),
   cep: z.string().min(1, "CEP é obrigatório."),
-  funcionarioResponsavelId: z.string().min(1).optional(),
-  disponibilidades: z
-    .array(disponibilidadeSchema)
-    .min(1, "Informe ao menos um horário de disponibilidade."),
 });
+
+const revendedoraCompletaSchema = pessoaSchema.merge(vinculoSchema);
 
 export type RevendedoraState = { error?: string; success?: boolean } | undefined;
 
-function parseFormData(formData: FormData) {
-  const raw = {
+export type BuscaCpfResult =
+  | { encontrada: true; revendedoraId: string; nome: string }
+  | { encontrada: false };
+
+export async function buscarRevendedoraPorCpf(cpf: string): Promise<BuscaCpfResult> {
+  await requireRole(["GESTOR", "FUNCIONARIO"]);
+
+  const digitos = cpf.replace(/\D/g, "");
+  if (!validarCpf(digitos)) {
+    return { encontrada: false };
+  }
+
+  const revendedora = await prisma.revendedora.findUnique({ where: { cpf: digitos } });
+  if (!revendedora) {
+    return { encontrada: false };
+  }
+
+  return { encontrada: true, revendedoraId: revendedora.id, nome: revendedora.nome };
+}
+
+function parseVinculoFormData(formData: FormData) {
+  return vinculoSchema.safeParse({
+    funcionarioResponsavelId: formData.get("funcionarioResponsavelId") || undefined,
+    disponibilidades: JSON.parse((formData.get("disponibilidades") as string) || "[]"),
+  });
+}
+
+function parseCompletaFormData(formData: FormData) {
+  return revendedoraCompletaSchema.safeParse({
     nome: formData.get("nome"),
     cpf: formData.get("cpf"),
     telefone: formData.get("telefone"),
@@ -48,9 +80,7 @@ function parseFormData(formData: FormData) {
     cep: formData.get("cep"),
     funcionarioResponsavelId: formData.get("funcionarioResponsavelId") || undefined,
     disponibilidades: JSON.parse((formData.get("disponibilidades") as string) || "[]"),
-  };
-
-  return revendedoraSchema.safeParse(raw);
+  });
 }
 
 async function geocodeEndereco(endereco: {
@@ -71,7 +101,44 @@ export async function createRevendedora(
 ): Promise<RevendedoraState> {
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const parsed = parseFormData(formData);
+  const revendedoraIdExistente = formData.get("revendedoraId") as string | null;
+
+  if (revendedoraIdExistente) {
+    const parsed = parseVinculoFormData(formData);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0].message };
+    }
+    const data = parsed.data;
+
+    const revendedora = await prisma.revendedora.findUnique({ where: { id: revendedoraIdExistente } });
+    if (!revendedora) {
+      return { error: "Revendedora não encontrada." };
+    }
+
+    const funcionarioResponsavelId =
+      funcionario.role === "GESTOR" ? (data.funcionarioResponsavelId ?? funcionario.id) : funcionario.id;
+
+    try {
+      await prisma.carteiraRevendedora.create({
+        data: {
+          revendedoraId: revendedoraIdExistente,
+          empresaId: funcionario.empresaId,
+          funcionarioResponsavelId,
+          disponibilidades: { create: data.disponibilidades },
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Unique constraint")) {
+        return { error: "Esta revendedora já atende a sua empresa." };
+      }
+      throw error;
+    }
+
+    revalidatePath("/revendedoras");
+    return { success: true };
+  }
+
+  const parsed = parseCompletaFormData(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
@@ -79,9 +146,7 @@ export async function createRevendedora(
   const data = parsed.data;
 
   const funcionarioResponsavelId =
-    funcionario.role === "GESTOR"
-      ? (data.funcionarioResponsavelId ?? funcionario.id)
-      : funcionario.id;
+    funcionario.role === "GESTOR" ? (data.funcionarioResponsavelId ?? funcionario.id) : funcionario.id;
 
   const geocode = await geocodeEndereco(data);
   if (!geocode) {
@@ -89,25 +154,32 @@ export async function createRevendedora(
   }
 
   try {
-    await prisma.revendedora.create({
-      data: {
-        nome: data.nome,
-        cpf: data.cpf.replace(/\D/g, ""),
-        telefone: data.telefone.replace(/\D/g, ""),
-        pontoReferencia: data.pontoReferencia,
-        rua: data.rua,
-        numero: data.numero,
-        bairro: data.bairro,
-        cidade: data.cidade,
-        estado: data.estado,
-        cep: data.cep,
-        latitude: geocode.latitude,
-        longitude: geocode.longitude,
-        funcionarioResponsavelId,
-        disponibilidades: {
-          create: data.disponibilidades,
+    await prisma.$transaction(async (tx) => {
+      const revendedora = await tx.revendedora.create({
+        data: {
+          nome: data.nome,
+          cpf: data.cpf.replace(/\D/g, ""),
+          telefone: data.telefone.replace(/\D/g, ""),
+          pontoReferencia: data.pontoReferencia,
+          rua: data.rua,
+          numero: data.numero,
+          bairro: data.bairro,
+          cidade: data.cidade,
+          estado: data.estado,
+          cep: data.cep,
+          latitude: geocode.latitude,
+          longitude: geocode.longitude,
         },
-      },
+      });
+
+      await tx.carteiraRevendedora.create({
+        data: {
+          revendedoraId: revendedora.id,
+          empresaId: funcionario.empresaId,
+          funcionarioResponsavelId,
+          disponibilidades: { create: data.disponibilidades },
+        },
+      });
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
@@ -120,38 +192,46 @@ export async function createRevendedora(
   return { success: true };
 }
 
+async function carregarCarteiraDaEmpresa(carteiraId: string, empresaId: string) {
+  return prisma.carteiraRevendedora.findFirst({
+    where: { id: carteiraId, empresaId },
+    include: { revendedora: true },
+  });
+}
+
 export async function editRevendedora(
-  id: string,
+  carteiraId: string,
   _state: RevendedoraState,
   formData: FormData
 ): Promise<RevendedoraState> {
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const existente = await prisma.revendedora.findUnique({ where: { id } });
-  if (!existente) {
+  const carteira = await carregarCarteiraDaEmpresa(carteiraId, funcionario.empresaId);
+  if (!carteira) {
     return { error: "Revendedora não encontrada." };
   }
-  if (funcionario.role === "FUNCIONARIO" && existente.funcionarioResponsavelId !== funcionario.id) {
+  if (funcionario.role === "FUNCIONARIO" && carteira.funcionarioResponsavelId !== funcionario.id) {
     return { error: "Você não tem permissão para editar esta revendedora." };
   }
 
-  const parsed = parseFormData(formData);
+  const parsed = parseCompletaFormData(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
   const data = parsed.data;
+  const revendedora = carteira.revendedora;
 
   const enderecoMudou =
-    data.rua !== existente.rua ||
-    data.numero !== existente.numero ||
-    data.bairro !== existente.bairro ||
-    data.cidade !== existente.cidade ||
-    data.estado !== existente.estado ||
-    data.cep !== existente.cep;
+    data.rua !== revendedora.rua ||
+    data.numero !== revendedora.numero ||
+    data.bairro !== revendedora.bairro ||
+    data.cidade !== revendedora.cidade ||
+    data.estado !== revendedora.estado ||
+    data.cep !== revendedora.cep;
 
-  let latitude = existente.latitude;
-  let longitude = existente.longitude;
+  let latitude = revendedora.latitude;
+  let longitude = revendedora.longitude;
 
   if (enderecoMudou) {
     const geocode = await geocodeEndereco(data);
@@ -164,31 +244,39 @@ export async function editRevendedora(
 
   const funcionarioResponsavelId =
     funcionario.role === "GESTOR"
-      ? (data.funcionarioResponsavelId ?? existente.funcionarioResponsavelId)
-      : existente.funcionarioResponsavelId;
+      ? (data.funcionarioResponsavelId ?? carteira.funcionarioResponsavelId)
+      : carteira.funcionarioResponsavelId;
 
   try {
-    await prisma.revendedora.update({
-      where: { id },
-      data: {
-        nome: data.nome,
-        cpf: data.cpf.replace(/\D/g, ""),
-        telefone: data.telefone.replace(/\D/g, ""),
-        pontoReferencia: data.pontoReferencia,
-        rua: data.rua,
-        numero: data.numero,
-        bairro: data.bairro,
-        cidade: data.cidade,
-        estado: data.estado,
-        cep: data.cep,
-        latitude,
-        longitude,
-        funcionarioResponsavelId,
-        disponibilidades: {
-          deleteMany: {},
-          create: data.disponibilidades,
+    await prisma.$transaction(async (tx) => {
+      await tx.revendedora.update({
+        where: { id: revendedora.id },
+        data: {
+          nome: data.nome,
+          cpf: data.cpf.replace(/\D/g, ""),
+          telefone: data.telefone.replace(/\D/g, ""),
+          pontoReferencia: data.pontoReferencia,
+          rua: data.rua,
+          numero: data.numero,
+          bairro: data.bairro,
+          cidade: data.cidade,
+          estado: data.estado,
+          cep: data.cep,
+          latitude,
+          longitude,
         },
-      },
+      });
+
+      await tx.carteiraRevendedora.update({
+        where: { id: carteiraId },
+        data: {
+          funcionarioResponsavelId,
+          disponibilidades: {
+            deleteMany: {},
+            create: data.disponibilidades,
+          },
+        },
+      });
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
@@ -201,19 +289,19 @@ export async function editRevendedora(
   return { success: true };
 }
 
-export async function desativarRevendedora(id: string): Promise<RevendedoraState> {
+export async function desativarRevendedora(carteiraId: string): Promise<RevendedoraState> {
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const existente = await prisma.revendedora.findUnique({ where: { id } });
-  if (!existente) {
+  const carteira = await carregarCarteiraDaEmpresa(carteiraId, funcionario.empresaId);
+  if (!carteira) {
     return { error: "Revendedora não encontrada." };
   }
-  if (funcionario.role === "FUNCIONARIO" && existente.funcionarioResponsavelId !== funcionario.id) {
+  if (funcionario.role === "FUNCIONARIO" && carteira.funcionarioResponsavelId !== funcionario.id) {
     return { error: "Você não tem permissão para desativar esta revendedora." };
   }
 
-  await prisma.revendedora.update({
-    where: { id },
+  await prisma.carteiraRevendedora.update({
+    where: { id: carteiraId },
     data: { ativa: false },
   });
 
@@ -221,19 +309,19 @@ export async function desativarRevendedora(id: string): Promise<RevendedoraState
   return { success: true };
 }
 
-export async function reativarRevendedora(id: string): Promise<RevendedoraState> {
+export async function reativarRevendedora(carteiraId: string): Promise<RevendedoraState> {
   const funcionario = await requireRole(["GESTOR", "FUNCIONARIO"]);
 
-  const existente = await prisma.revendedora.findUnique({ where: { id } });
-  if (!existente) {
+  const carteira = await carregarCarteiraDaEmpresa(carteiraId, funcionario.empresaId);
+  if (!carteira) {
     return { error: "Revendedora não encontrada." };
   }
-  if (funcionario.role === "FUNCIONARIO" && existente.funcionarioResponsavelId !== funcionario.id) {
+  if (funcionario.role === "FUNCIONARIO" && carteira.funcionarioResponsavelId !== funcionario.id) {
     return { error: "Você não tem permissão para reativar esta revendedora." };
   }
 
-  await prisma.revendedora.update({
-    where: { id },
+  await prisma.carteiraRevendedora.update({
+    where: { id: carteiraId },
     data: { ativa: true },
   });
 
@@ -242,18 +330,18 @@ export async function reativarRevendedora(id: string): Promise<RevendedoraState>
 }
 
 export async function reatribuirRevendedora(
-  id: string,
+  carteiraId: string,
   novoFuncionarioResponsavelId: string
 ): Promise<RevendedoraState> {
-  await requireRole(["GESTOR"]);
+  const funcionario = await requireRole(["GESTOR"]);
 
-  const existente = await prisma.revendedora.findUnique({ where: { id } });
-  if (!existente) {
+  const carteira = await carregarCarteiraDaEmpresa(carteiraId, funcionario.empresaId);
+  if (!carteira) {
     return { error: "Revendedora não encontrada." };
   }
 
-  await prisma.revendedora.update({
-    where: { id },
+  await prisma.carteiraRevendedora.update({
+    where: { id: carteiraId },
     data: { funcionarioResponsavelId: novoFuncionarioResponsavelId },
   });
 

@@ -25,6 +25,7 @@ model Empresa {
   updatedAt DateTime @updatedAt
 
   funcionarios Funcionario[]
+  carteiras    CarteiraRevendedora[]
 }
 
 model Funcionario {
@@ -40,7 +41,7 @@ model Funcionario {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
-  revendedoras Revendedora[]
+  carteiras CarteiraRevendedora[]
 }
 
 enum DiaSemana {
@@ -71,21 +72,39 @@ model Revendedora {
   latitude  Float
   longitude Float
 
-  ativa Boolean @default(true)
-
-  funcionarioResponsavelId String
-  funcionarioResponsavel   Funcionario @relation(fields: [funcionarioResponsavelId], references: [id])
-
-  disponibilidades DisponibilidadeRevendedora[]
+  carteiras CarteiraRevendedora[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model DisponibilidadeRevendedora {
-  id            String      @id @default(uuid())
+model CarteiraRevendedora {
+  id String @id @default(uuid())
+
   revendedoraId String
-  revendedora   Revendedora @relation(fields: [revendedoraId], references: [id], onDelete: Cascade)
+  revendedora   Revendedora @relation(fields: [revendedoraId], references: [id])
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+
+  funcionarioResponsavelId String
+  funcionarioResponsavel   Funcionario @relation(fields: [funcionarioResponsavelId], references: [id])
+
+  ativa Boolean @default(true)
+
+  disponibilidades DisponibilidadeRevendedora[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([revendedoraId, empresaId])
+}
+
+model DisponibilidadeRevendedora {
+  id String @id @default(uuid())
+
+  carteiraId String
+  carteira   CarteiraRevendedora @relation(fields: [carteiraId], references: [id], onDelete: Cascade)
 
   diaSemana  DiaSemana
   horaInicio String
