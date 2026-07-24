@@ -23,7 +23,9 @@ Gestão de consignação porta-a-porta para revendedoras. Next.js (App Router) +
    npx prisma migrate dev
    ```
 
-4. Rodar dev server:
+4. Primeira empresa: acessar `/signup` e cadastrar (cria Empresa + primeiro Funcionario GESTOR). Funcionários seguintes são criados pelo gestor em `/gestor/funcionarios`.
+
+5. Rodar dev server:
 
    ```bash
    npm run dev

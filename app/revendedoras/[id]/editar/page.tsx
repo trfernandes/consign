@@ -27,7 +27,10 @@ export default async function EditarRevendedoraPage({
 
   const funcionarios =
     funcionario.role === "GESTOR"
-      ? await prisma.funcionario.findMany({ orderBy: { nome: "asc" } })
+      ? await prisma.funcionario.findMany({
+          where: { empresaId: funcionario.empresaId },
+          orderBy: { nome: "asc" },
+        })
       : undefined;
 
   return (

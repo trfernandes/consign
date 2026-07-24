@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { NovoFuncionarioForm } from "./novo-funcionario-form";
 
 export default async function FuncionariosPage() {
-  await requireRole(["GESTOR"]);
+  const gestor = await requireRole(["GESTOR"]);
 
   const funcionarios = await prisma.funcionario.findMany({
-    where: { role: "FUNCIONARIO" },
+    where: { role: "FUNCIONARIO", empresaId: gestor.empresaId },
     orderBy: { nome: "asc" },
   });
 

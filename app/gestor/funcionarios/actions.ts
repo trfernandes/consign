@@ -18,7 +18,7 @@ export async function createFuncionario(
   _state: CreateFuncionarioState,
   formData: FormData
 ): Promise<CreateFuncionarioState> {
-  await requireRole(["GESTOR"]);
+  const gestor = await requireRole(["GESTOR"]);
 
   const parsed = createFuncionarioSchema.safeParse({
     nome: formData.get("nome"),
@@ -51,6 +51,7 @@ export async function createFuncionario(
       email,
       telefone,
       role: "FUNCIONARIO",
+      empresaId: gestor.empresaId,
     },
   });
 
